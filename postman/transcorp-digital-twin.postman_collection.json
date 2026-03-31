@@ -1,0 +1,482 @@
+{
+	"info": {
+		"name": "Transcorp Digital Twin",
+		"description": "Mock server for M2P/Transcorp Prepaid Card APIs. Run requests in order for full flow testing.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080"
+		},
+		{
+			"key": "auth_token",
+			"value": "test-token"
+		},
+		{
+			"key": "tenant",
+			"value": "BUSINESS"
+		},
+		{
+			"key": "user_entity_id",
+			"value": "USER_001"
+		},
+		{
+			"key": "corp_entity_id",
+			"value": "AAROKYA_CORP"
+		},
+		{
+			"key": "otp",
+			"value": ""
+		},
+		{
+			"key": "kit_no",
+			"value": ""
+		}
+	],
+	"auth": {
+		"type": "apikey",
+		"apikey": [
+			{
+				"key": "key",
+				"value": "Authorization",
+				"type": "string"
+			},
+			{
+				"key": "value",
+				"value": "{{auth_token}}",
+				"type": "string"
+			},
+			{
+				"key": "in",
+				"value": "header",
+				"type": "string"
+			}
+		]
+	},
+	"item": [
+		{
+			"name": "Setup",
+			"item": [
+				{
+					"name": "1. Register Aarokya Corporate",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "TENANT", "value": "{{tenant}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"entityId\": \"{{corp_entity_id}}\",\n  \"entityType\": \"CORPORATE_V2\",\n  \"businessType\": \"AAROKYA\",\n  \"businessId\": \"{{corp_entity_id}}\",\n  \"title\": \"MR\",\n  \"firstName\": \"Aarokya\",\n  \"lastName\": \"Health\",\n  \"kitNo\": \"990001001\",\n  \"contactNo\": \"+919999999999\",\n  \"emailAddress\": \"admin@aarokya.com\",\n  \"countryofIssue\": \"India\",\n  \"dependent\": false,\n  \"addressDto\": {\n    \"address\": [{\n      \"title\": \"RESIDENTIAL_PRIMARY\",\n      \"address1\": \"100 HSR Layout\",\n      \"address2\": \"Sector 1\",\n      \"city\": \"Bangalore\",\n      \"state\": \"KARNATAKA\",\n      \"country\": \"India\",\n      \"pinCode\": \"560102\"\n    }]\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/Yappay/registration-manager/register",
+							"host": ["{{base_url}}"],
+							"path": ["Yappay", "registration-manager", "register"]
+						}
+					}
+				},
+				{
+					"name": "2. Load Corp Pool (M2C)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "TENANT", "value": "{{tenant}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fromEntityId\": \"{{corp_entity_id}}\",\n  \"toEntityId\": \"{{corp_entity_id}}\",\n  \"amount\": 100000.00,\n  \"transactionType\": \"M2C\",\n  \"yapcode\": \"1234\",\n  \"productId\": \"GENERAL\",\n  \"description\": \"Corp pool initial load\",\n  \"business\": \"AAROKYA\",\n  \"businessEntityId\": \"AAROKYA\",\n  \"transactionOrigin\": \"WEB\",\n  \"externalTransactionId\": \"CORP_LOAD_001\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/Yappay/txn-manager/create",
+							"host": ["{{base_url}}"],
+							"path": ["Yappay", "txn-manager", "create"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "User Onboarding",
+			"item": [
+				{
+					"name": "3. Generate OTP",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "TENANT", "value": "{{tenant}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"entityId\": \"{{user_entity_id}}\",\n  \"mobileNumber\": \"+919876543210\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/kyc/customer/generate/otp",
+							"host": ["{{base_url}}"],
+							"path": ["kyc", "customer", "generate", "otp"]
+						}
+					}
+				},
+				{
+					"name": "4. Register Customer (Create Wallet)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "TENANT", "value": "{{tenant}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"entityId\": \"{{user_entity_id}}\",\n  \"otp\": \"{{otp}}\",\n  \"channelName\": \"MIN_KYC\",\n  \"entityType\": \"CUSTOMER\",\n  \"businessType\": \"AAROKYA\",\n  \"businessId\": \"{{user_entity_id}}\",\n  \"title\": \"Mr\",\n  \"firstName\": \"Rahul\",\n  \"middleName\": \"\",\n  \"lastName\": \"Kumar\",\n  \"gender\": \"MALE\",\n  \"isNRICustomer\": false,\n  \"isMinor\": false,\n  \"isDependant\": false,\n  \"maritalStatus\": \"SINGLE\",\n  \"countryCode\": \"91\",\n  \"employmentIndustry\": \"INFORMATION_TECHNOLOGY\",\n  \"employmentType\": \"EMPLOYED\",\n  \"kitInfo\": [{\n    \"cardType\": \"WALLET\",\n    \"cardCategory\": \"PREPAID\",\n    \"cardRegStatus\": \"ACTIVE\"\n  }],\n  \"addressInfo\": [{\n    \"addressCategory\": \"PERMANENT\",\n    \"address1\": \"123 MG Road\",\n    \"address2\": \"Koramangala\",\n    \"address3\": \"Near Forum Mall\",\n    \"city\": \"BANGALORE\",\n    \"state\": \"KARNATAKA\",\n    \"country\": \"INDIA\",\n    \"pinCode\": \"560034\"\n  }],\n  \"communicationInfo\": [{\n    \"contactNo\": \"+919876543210\",\n    \"emailId\": \"rahul@test.com\"\n  }],\n  \"kycInfo\": [{\n    \"documentType\": \"PAN\",\n    \"documentNo\": \"ABCPK1234A\",\n    \"documentExpiry\": \"2099-01-01\"\n  }],\n  \"dateInfo\": [{\n    \"dateType\": \"DOB\",\n    \"date\": \"1995-06-15\"\n  }]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/kyc/v2/register",
+							"host": ["{{base_url}}"],
+							"path": ["kyc", "v2", "register"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Wallet Operations",
+			"item": [
+				{
+					"name": "5. Load User Wallet (B2C)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "TENANT", "value": "{{tenant}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fromEntityId\": \"{{corp_entity_id}}\",\n  \"toEntityId\": \"{{user_entity_id}}\",\n  \"amount\": 5000.00,\n  \"transactionType\": \"B2C\",\n  \"yapcode\": \"1234\",\n  \"productId\": \"GENERAL\",\n  \"fromProductId\": \"BUSINESS\",\n  \"description\": \"Wallet top-up\",\n  \"business\": \"AAROKYA\",\n  \"businessEntityId\": \"AAROKYA\",\n  \"transactionOrigin\": \"MOBILE\",\n  \"externalTransactionId\": \"LOAD_001\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/Yappay/txn-manager/create",
+							"host": ["{{base_url}}"],
+							"path": ["Yappay", "txn-manager", "create"]
+						}
+					}
+				},
+				{
+					"name": "6. Fetch User Balance",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "TENANT", "value": "{{tenant}}"}
+						],
+						"url": {
+							"raw": "{{base_url}}/Yappay/business-entity-manager/fetchbalance/{{user_entity_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["Yappay", "business-entity-manager", "fetchbalance", "{{user_entity_id}}"]
+						}
+					}
+				},
+				{
+					"name": "7. Fetch Corp Balance",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "TENANT", "value": "{{tenant}}"}
+						],
+						"url": {
+							"raw": "{{base_url}}/Yappay/business-entity-manager/fetchbalance/{{corp_entity_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["Yappay", "business-entity-manager", "fetchbalance", "{{corp_entity_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Insurance Purchase",
+			"item": [
+				{
+					"name": "8. Buy Insurance (C2B Debit)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "TENANT", "value": "{{tenant}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fromEntityId\": \"{{user_entity_id}}\",\n  \"toEntityId\": \"{{corp_entity_id}}\",\n  \"amount\": 5000.00,\n  \"transactionType\": \"C2B\",\n  \"yapcode\": \"1234\",\n  \"productId\": \"BUSINESS\",\n  \"fromProductId\": \"GENERAL\",\n  \"description\": \"Narayana Silver Insurance\",\n  \"business\": \"AAROKYA\",\n  \"businessEntityId\": \"AAROKYA\",\n  \"transactionOrigin\": \"MOBILE\",\n  \"externalTransactionId\": \"INS_PURCHASE_001\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/Yappay/txn-manager/create",
+							"host": ["{{base_url}}"],
+							"path": ["Yappay", "txn-manager", "create"]
+						}
+					}
+				},
+				{
+					"name": "9. Verify User Balance After Purchase",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "TENANT", "value": "{{tenant}}"}
+						],
+						"url": {
+							"raw": "{{base_url}}/Yappay/business-entity-manager/fetchbalance/{{user_entity_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["Yappay", "business-entity-manager", "fetchbalance", "{{user_entity_id}}"]
+						}
+					}
+				},
+				{
+					"name": "10. Verify Corp Balance After Purchase",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "TENANT", "value": "{{tenant}}"}
+						],
+						"url": {
+							"raw": "{{base_url}}/Yappay/business-entity-manager/fetchbalance/{{corp_entity_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["Yappay", "business-entity-manager", "fetchbalance", "{{corp_entity_id}}"]
+						}
+					}
+				},
+				{
+					"name": "11. Insufficient Balance Test",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "TENANT", "value": "{{tenant}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fromEntityId\": \"{{user_entity_id}}\",\n  \"toEntityId\": \"{{corp_entity_id}}\",\n  \"amount\": 1000.00,\n  \"transactionType\": \"C2B\",\n  \"yapcode\": \"1234\",\n  \"productId\": \"BUSINESS\",\n  \"fromProductId\": \"GENERAL\",\n  \"description\": \"Should fail - no balance\",\n  \"business\": \"AAROKYA\",\n  \"businessEntityId\": \"AAROKYA\",\n  \"transactionOrigin\": \"MOBILE\",\n  \"externalTransactionId\": \"INS_FAIL_001\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/Yappay/txn-manager/create",
+							"host": ["{{base_url}}"],
+							"path": ["Yappay", "txn-manager", "create"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Transaction History",
+			"item": [
+				{
+					"name": "12. Transaction Status by External ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "TENANT", "value": "{{tenant}}"}
+						],
+						"url": {
+							"raw": "{{base_url}}/Yappay/txn-manager/fetch/INS_PURCHASE_001",
+							"host": ["{{base_url}}"],
+							"path": ["Yappay", "txn-manager", "fetch", "INS_PURCHASE_001"]
+						}
+					}
+				},
+				{
+					"name": "13. Fetch Transactions by Entity",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "TENANT", "value": "{{tenant}}"}
+						],
+						"url": {
+							"raw": "{{base_url}}/Yappay/txn-manager/fetch/success/entity/{{user_entity_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["Yappay", "txn-manager", "fetch", "success", "entity", "{{user_entity_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Card Management",
+			"item": [
+				{
+					"name": "14. Add Card",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "TENANT", "value": "{{tenant}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"entityId\": \"{{user_entity_id}}\",\n  \"businessType\": \"AAROKYA\",\n  \"cardType\": \"V\",\n  \"kitNo\": \"7100000001\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/Yappay/business-entity-manager/addCard",
+							"host": ["{{base_url}}"],
+							"path": ["Yappay", "business-entity-manager", "addCard"]
+						}
+					}
+				},
+				{
+					"name": "15. Get Card List",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "TENANT", "value": "{{tenant}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"entityId\": \"{{user_entity_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/Yappay/business-entity-manager/v3/getCardList",
+							"host": ["{{base_url}}"],
+							"path": ["Yappay", "business-entity-manager", "v3", "getCardList"]
+						}
+					}
+				},
+				{
+					"name": "16. Lock Card",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "TENANT", "value": "{{tenant}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"entityId\": \"{{user_entity_id}}\",\n  \"kitNo\": \"{{kit_no}}\",\n  \"flag\": \"L\",\n  \"reason\": \"User requested lock\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/Yappay/business-entity-manager/block",
+							"host": ["{{base_url}}"],
+							"path": ["Yappay", "business-entity-manager", "block"]
+						}
+					}
+				},
+				{
+					"name": "17. Unlock Card",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "TENANT", "value": "{{tenant}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"entityId\": \"{{user_entity_id}}\",\n  \"kitNo\": \"{{kit_no}}\",\n  \"flag\": \"UL\",\n  \"reason\": \"User requested unlock\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/Yappay/business-entity-manager/block",
+							"host": ["{{base_url}}"],
+							"path": ["Yappay", "business-entity-manager", "block"]
+						}
+					}
+				},
+				{
+					"name": "18. Permanent Block Card",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "TENANT", "value": "{{tenant}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"entityId\": \"{{user_entity_id}}\",\n  \"kitNo\": \"{{kit_no}}\",\n  \"flag\": \"BL\",\n  \"reason\": \"Card lost\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/Yappay/business-entity-manager/block",
+							"host": ["{{base_url}}"],
+							"path": ["Yappay", "business-entity-manager", "block"]
+						}
+					}
+				},
+				{
+					"name": "19. Replace Card",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "TENANT", "value": "{{tenant}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"entityId\": \"{{user_entity_id}}\",\n  \"oldKitNo\": \"{{kit_no}}\",\n  \"newKitNo\": \"8800000002\",\n  \"cardType\": \"VIRTUAL\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/Yappay/business-entity-manager/replaceCard",
+							"host": ["{{base_url}}"],
+							"path": ["Yappay", "business-entity-manager", "replaceCard"]
+						}
+					}
+				},
+				{
+					"name": "20. Request Physical Card",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "TENANT", "value": "{{tenant}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"entityId\": \"{{user_entity_id}}\",\n  \"kitNo\": \"{{kit_no}}\",\n  \"addressDto\": {\n    \"address\": [{\n      \"title\": \"DELIVERY\",\n      \"address1\": \"123 MG Road\",\n      \"address2\": \"Koramangala\",\n      \"address3\": \"Near Forum Mall\",\n      \"city\": \"Bangalore\",\n      \"state\": \"Karnataka\",\n      \"country\": \"India\",\n      \"pinCode\": \"560034\",\n      \"aliasName\": \"Rahul Kumar\"\n    }]\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/Yappay/business-entity-manager/requestPhysicalCard",
+							"host": ["{{base_url}}"],
+							"path": ["Yappay", "business-entity-manager", "requestPhysicalCard"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Preferences",
+			"item": [
+				{
+					"name": "21. Set Preferences",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "TENANT", "value": "{{tenant}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"entityId\": \"{{user_entity_id}}\",\n  \"atm\": true,\n  \"pos\": true,\n  \"ecom\": true,\n  \"dcc\": false,\n  \"contactless\": true,\n  \"international\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/Yappay/business-entity-manager/setPreferences",
+							"host": ["{{base_url}}"],
+							"path": ["Yappay", "business-entity-manager", "setPreferences"]
+						}
+					}
+				},
+				{
+					"name": "22. Fetch Preferences",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "TENANT", "value": "{{tenant}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"entityId\": \"{{user_entity_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/Yappay/business-entity-manager/fetchPreference",
+							"host": ["{{base_url}}"],
+							"path": ["Yappay", "business-entity-manager", "fetchPreference"]
+						}
+					}
+				}
+			]
+		}
+	]
+}
