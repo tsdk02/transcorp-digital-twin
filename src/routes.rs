@@ -1,6 +1,6 @@
 use actix_web::web;
 
-use crate::handlers::{card, kyc, registration, transaction};
+use crate::handlers::{card, encryption, kyc, registration, transaction};
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg
@@ -24,6 +24,10 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
                         .route(
                             "/fetch/success/entity/{entityId}",
                             web::get().to(transaction::fetch_by_entity),
+                        )
+                        .route(
+                            "/fetchTnxByEntityIdBetween/{entityId}",
+                            web::get().to(transaction::fetch_txn_paging),
                         ),
                 )
                 // Business entity manager
@@ -42,12 +46,27 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
                             web::post().to(card::request_physical_card),
                         )
                         .route("/setPreferences", web::post().to(card::set_preferences))
-                        .route("/fetchPreference", web::post().to(card::fetch_preference)),
+                        .route("/fetchPreference", web::post().to(card::fetch_preference))
+                        .route(
+                            "/updatePreferenceExternal",
+                            web::post().to(card::update_preference_external),
+                        ),
+                )
+                // PCI / bitUrl endpoints
+                .service(
+                    web::scope("/bitUrl")
+                        .route("/cardDetails", web::post().to(card::pci_card_details))
+                        .route("/setPin", web::post().to(card::set_pin)),
                 )
                 // Registration manager
-                .service(
-                    web::scope("/registration-manager")
-                        .route("/register", web::post().to(registration::register_corporate)),
-                ),
+                .service(web::scope("/registration-manager").route(
+                    "/register",
+                    web::post().to(registration::register_corporate),
+                )),
+        )
+        // Encryption endpoint (outside Yappay scope)
+        .route(
+            "/encryptWithKey",
+            web::post().to(encryption::encrypt_with_key),
         );
 }

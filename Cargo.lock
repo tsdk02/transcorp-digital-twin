@@ -2096,6 +2096,7 @@ version = "0.1.0"
 dependencies = [
  "actix-rt",
  "actix-web",
+ "base64",
  "chrono",
  "dotenvy",
  "env_logger",

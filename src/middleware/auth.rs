@@ -1,6 +1,6 @@
-use actix_web::dev::{ServiceRequest, ServiceResponse, Transform, Service};
-use actix_web::{Error, HttpResponse, body::EitherBody};
-use std::future::{Ready, ready, Future};
+use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform};
+use actix_web::{body::EitherBody, Error, HttpResponse};
+use std::future::{ready, Future, Ready};
 use std::pin::Pin;
 use std::sync::Arc;
 
@@ -55,16 +55,42 @@ where
     }
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
-        // Check Authorization header
+        // Check Authorization header (Yappay endpoints use Basic auth)
         let auth_header = req
             .headers()
             .get("Authorization")
             .and_then(|v| v.to_str().ok())
             .map(|s| s.to_string());
 
-        let has_valid_token = match &auth_header {
-            Some(token) => self.valid_tokens.iter().any(|t| token == t || token == &format!("Bearer {}", t)),
-            None => false,
+        // Check partnerId + partnerToken headers (KYC endpoints)
+        let partner_token = req
+            .headers()
+            .get("partnerToken")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string());
+
+        let _partner_id = req
+            .headers()
+            .get("partnerId")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string());
+
+        log::debug!(
+            "Auth header: {:?}, partnerToken: {:?}, valid_tokens: {:?}",
+            auth_header,
+            partner_token,
+            self.valid_tokens
+        );
+
+        let has_valid_token = match (&auth_header, &partner_token) {
+            // Authorization header present — check directly and with prefixes
+            (Some(token), _) => self.valid_tokens.iter().any(|t| {
+                token == t || token == &format!("Bearer {}", t) || token == &format!("Basic {}", t)
+            }),
+            // No Authorization header — fall back to partnerToken
+            (None, Some(pt)) => self.valid_tokens.iter().any(|t| pt == t),
+            // Neither present
+            (None, None) => false,
         };
 
         // Check TENANT header
@@ -81,16 +107,16 @@ where
 
         if !has_valid_token {
             let err = error::auth_failed();
-            let response = HttpResponse::Unauthorized()
-                .json(ApiResponse::<serde_json::Value>::error(err));
+            let response =
+                HttpResponse::Unauthorized().json(ApiResponse::<serde_json::Value>::error(err));
             let srv_response = req.into_response(response).map_into_right_body();
             return Box::pin(async move { Ok(srv_response) });
         }
 
         if !has_valid_tenant {
             let err = error::ErrorDetail::new("Y104", "Invalid or missing TENANT header");
-            let response = HttpResponse::BadRequest()
-                .json(ApiResponse::<serde_json::Value>::error(err));
+            let response =
+                HttpResponse::BadRequest().json(ApiResponse::<serde_json::Value>::error(err));
             let srv_response = req.into_response(response).map_into_right_body();
             return Box::pin(async move { Ok(srv_response) });
         }

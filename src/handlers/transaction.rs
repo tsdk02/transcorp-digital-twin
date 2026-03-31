@@ -28,7 +28,8 @@ pub async fn create_transaction(
     let amount_paise = match balance::parse_amount_to_paise(&amount_value) {
         Some(p) if p > 0 => p,
         _ => {
-            return error::ErrorDetail::new("Y512", "Amount Must be greater than zero").to_response()
+            return error::ErrorDetail::new("Y512", "Amount Must be greater than zero")
+                .to_response()
         }
     };
 
@@ -177,10 +178,7 @@ pub async fn create_transaction(
     HttpResponse::Ok().json(ApiResponse::success(CreateTransactionResponse { tx_id }))
 }
 
-pub async fn fetch_by_ext_id(
-    path: web::Path<String>,
-    state: web::Data<AppState>,
-) -> HttpResponse {
+pub async fn fetch_by_ext_id(path: web::Path<String>, state: web::Data<AppState>) -> HttpResponse {
     let ext_txn_id = path.into_inner();
 
     let txns = state.transactions.read().unwrap();
@@ -193,10 +191,54 @@ pub async fn fetch_by_ext_id(
     }
 }
 
-pub async fn fetch_by_entity(
+pub async fn fetch_txn_paging(
     path: web::Path<String>,
+    query: web::Query<FetchTxnPagingQuery>,
     state: web::Data<AppState>,
 ) -> HttpResponse {
+    let entity_id = path.into_inner();
+    let page_number = query.page_number.unwrap_or(0);
+    let page_size = query.page_size.unwrap_or(5);
+
+    let txns = state.transactions.read().unwrap();
+    let mut entity_txns: Vec<&Transaction> = txns
+        .values()
+        .filter(|t| {
+            t.beneficiary_id.as_deref() == Some(&entity_id)
+                || t.other_party_id.as_deref() == Some(&entity_id)
+        })
+        .collect();
+
+    // Sort by time descending
+    entity_txns.sort_by(|a, b| b.time.cmp(&a.time));
+
+    let total_elements = entity_txns.len() as u32;
+    let total_pages = if page_size > 0 {
+        (total_elements + page_size - 1) / page_size
+    } else {
+        0
+    };
+
+    let start = (page_number * page_size) as usize;
+    let page_items: Vec<&Transaction> = entity_txns
+        .into_iter()
+        .skip(start)
+        .take(page_size as usize)
+        .collect();
+
+    HttpResponse::Ok().json(serde_json::json!({
+        "result": page_items,
+        "exception": null,
+        "pagination": {
+            "pageNumber": page_number,
+            "pageSize": page_size,
+            "totalPages": total_pages,
+            "totalElements": total_elements
+        }
+    }))
+}
+
+pub async fn fetch_by_entity(path: web::Path<String>, state: web::Data<AppState>) -> HttpResponse {
     let entity_id = path.into_inner();
 
     let txns = state.transactions.read().unwrap();
@@ -218,10 +260,7 @@ pub async fn fetch_by_entity(
     }
 
     // Return most recent transaction
-    let latest = entity_txns
-        .iter()
-        .max_by_key(|t| t.time)
-        .unwrap();
+    let latest = entity_txns.iter().max_by_key(|t| t.time).unwrap();
 
     HttpResponse::Ok().json(ApiResponse::success(FetchTransactionResponse {
         transaction: (*latest).clone(),

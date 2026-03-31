@@ -24,7 +24,10 @@ pub fn generate_txn_id() -> i64 {
 
 pub fn generate_kit_no() -> String {
     let mut rng = rand::thread_rng();
-    format!("{:012}", rng.gen_range(100_000_000_000_i64..999_999_999_999_i64))
+    format!(
+        "{:012}",
+        rng.gen_range(100_000_000_000_i64..999_999_999_999_i64)
+    )
 }
 
 pub fn generate_card_number() -> String {

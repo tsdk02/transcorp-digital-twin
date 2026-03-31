@@ -60,6 +60,15 @@ pub struct FetchTransactionResponse {
     pub balance: Option<f64>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FetchTxnPagingQuery {
+    pub from_date: Option<String>,
+    pub to_date: Option<String>,
+    pub page_number: Option<u32>,
+    pub page_size: Option<u32>,
+}
+
 // Webhook notification payload
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

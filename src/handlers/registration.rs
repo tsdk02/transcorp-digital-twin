@@ -85,5 +85,7 @@ pub async fn register_corporate(
 
     log::info!("Corporate registered: entity_id={}", entity_id);
 
-    HttpResponse::Ok().json(ApiResponse::success(RegisterCorporateResponse { entity_id }))
+    HttpResponse::Ok().json(ApiResponse::success(RegisterCorporateResponse {
+        entity_id,
+    }))
 }

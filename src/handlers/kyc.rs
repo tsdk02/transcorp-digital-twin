@@ -23,6 +23,8 @@ pub async fn generate_otp(
     let otp = id_gen::generate_otp();
     let now = chrono::Utc::now().timestamp();
 
+    log::info!("OTP generated for entity_id={}: {}", entity_id, otp);
+
     let record = OtpRecord {
         otp,
         entity_id: entity_id.clone(),
@@ -35,11 +37,10 @@ pub async fn generate_otp(
         otps.insert(entity_id.clone(), record);
     }
 
-    log::info!("OTP generated for entity_id={}", entity_id);
-
     HttpResponse::Ok().json(ApiResponse::success(GenerateOtpResponse {
         success: true,
         entity_id,
+        flow_ref_no: None,
     }))
 }
 
@@ -151,7 +152,10 @@ pub async fn register_customer(
                 kit_no: kit.kit_no.clone().unwrap_or_else(id_gen::generate_kit_no),
                 entity_id: entity_id.clone(),
                 card_number: id_gen::generate_card_number(),
-                card_type: kit.card_type.clone().unwrap_or_else(|| "VIRTUAL".to_string()),
+                card_type: kit
+                    .card_type
+                    .clone()
+                    .unwrap_or_else(|| "VIRTUAL".to_string()),
                 card_category: kit
                     .card_category
                     .clone()
@@ -185,6 +189,6 @@ pub async fn register_customer(
         entity_id,
         kit_no,
         token,
-        valid: true,
+        valid: false,
     }))
 }

@@ -22,9 +22,7 @@ impl ErrorDetail {
 
     pub fn to_response(&self) -> HttpResponse {
         let status = match self.code.as_str() {
-            "Y300" | "Y301" | "Y302" | "Y303" | "Y304" => {
-                actix_web::http::StatusCode::UNAUTHORIZED
-            }
+            "Y300" | "Y301" | "Y302" | "Y303" | "Y304" => actix_web::http::StatusCode::UNAUTHORIZED,
             "Y230" => actix_web::http::StatusCode::UNAUTHORIZED,
             _ => actix_web::http::StatusCode::BAD_REQUEST,
         };

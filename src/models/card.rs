@@ -169,6 +169,27 @@ pub struct FetchPreferenceResponse {
     pub international: Option<bool>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdatePreferenceExternalRequest {
+    pub entity_id: Option<String>,
+    pub status: Option<String>,
+    #[serde(rename = "type")]
+    pub pref_type: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PciCardDetailsRequest {
+    pub token: Option<String>,
+    pub kit_no: Option<String>,
+    pub entity_id: Option<String>,
+    pub app_guid: Option<String>,
+    pub business: Option<String>,
+    pub callback_url: Option<String>,
+    pub dob: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
 pub struct SuccessResult {
     pub success: bool,

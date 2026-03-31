@@ -6,10 +6,7 @@ use crate::models::error;
 use crate::services::{balance, id_gen};
 use crate::state::AppState;
 
-pub async fn add_card(
-    body: web::Json<AddCardRequest>,
-    state: web::Data<AppState>,
-) -> HttpResponse {
+pub async fn add_card(body: web::Json<AddCardRequest>, state: web::Data<AppState>) -> HttpResponse {
     let entity_id = match &body.entity_id {
         Some(id) if !id.is_empty() => id.clone(),
         _ => return error::missing_field("entityId").to_response(),
@@ -24,10 +21,7 @@ pub async fn add_card(
         }
     }
 
-    let kit_no = body
-        .kit_no
-        .clone()
-        .unwrap_or_else(id_gen::generate_kit_no);
+    let kit_no = body.kit_no.clone().unwrap_or_else(id_gen::generate_kit_no);
 
     let card_type = match &body.card_type {
         Some(ct) => match ct.as_str() {
@@ -60,10 +54,7 @@ pub async fn add_card(
     HttpResponse::Ok().json(ApiResponse::success(SuccessResult { success: true }))
 }
 
-pub async fn fetch_balance(
-    path: web::Path<String>,
-    state: web::Data<AppState>,
-) -> HttpResponse {
+pub async fn fetch_balance(path: web::Path<String>, state: web::Data<AppState>) -> HttpResponse {
     let entity_id = path.into_inner();
 
     let balances = state.balances.read().unwrap();
@@ -73,8 +64,8 @@ pub async fn fetch_balance(
             HttpResponse::Ok().json(ApiResponse::success(vec![serde_json::json!({
                 "entityId": entity_id,
                 "productId": "GENERAL",
-                "yseId": serde_json::Value::Null,
-                "balance": format!("{:.1}", amount)
+                "balance": format!("{:.1}", amount),
+                "lienBalance": "0.0"
             })]))
         }
         None => error::entity_not_found(&entity_id).to_response(),
@@ -106,7 +97,13 @@ pub async fn get_card_list(
         expiry_date_list: entity_cards.iter().map(|c| c.expiry_date.clone()).collect(),
         card_status_list: entity_cards
             .iter()
-            .map(|c| serde_json::to_value(&c.status).unwrap().as_str().unwrap().to_string())
+            .map(|c| {
+                serde_json::to_value(&c.status)
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .to_string()
+            })
             .collect(),
         card_type_list: entity_cards.iter().map(|c| c.card_type.clone()).collect(),
         network_type_list: entity_cards
@@ -212,10 +209,7 @@ pub async fn replace_card(
         .clone()
         .unwrap_or_else(id_gen::generate_kit_no);
 
-    let card_type = body
-        .card_type
-        .clone()
-        .unwrap_or(old_card.card_type.clone());
+    let card_type = body.card_type.clone().unwrap_or(old_card.card_type.clone());
 
     let now = chrono::Utc::now().timestamp();
     let new_card = Card {
@@ -317,6 +311,123 @@ pub async fn set_preferences(
     }
 
     HttpResponse::Ok().json(ApiResponse::success(true))
+}
+
+pub async fn update_preference_external(
+    body: web::Json<UpdatePreferenceExternalRequest>,
+    state: web::Data<AppState>,
+) -> HttpResponse {
+    let entity_id = match &body.entity_id {
+        Some(id) if !id.is_empty() => id.clone(),
+        _ => return error::missing_field("entityId").to_response(),
+    };
+
+    let status = match &body.status {
+        Some(s) if !s.is_empty() => s.clone(),
+        _ => return error::missing_field("status").to_response(),
+    };
+
+    let pref_type = match &body.pref_type {
+        Some(t) if !t.is_empty() => t.clone(),
+        _ => return error::missing_field("type").to_response(),
+    };
+
+    // Verify entity exists
+    {
+        let customers = state.customers.read().unwrap();
+        let corporates = state.corporates.read().unwrap();
+        if !customers.contains_key(&entity_id) && !corporates.contains_key(&entity_id) {
+            return error::entity_not_found(&entity_id).to_response();
+        }
+    }
+
+    let enabled = status == "ALLOWED";
+
+    let mut prefs = state.preferences.write().unwrap();
+    let existing = prefs
+        .entry(entity_id.clone())
+        .or_insert_with(|| CardPreferences {
+            entity_id: entity_id.clone(),
+            ..Default::default()
+        });
+
+    match pref_type.as_str() {
+        "ECOM" => existing.ecom = Some(enabled),
+        "POS" => existing.pos = Some(enabled),
+        "ATM" => existing.atm = Some(enabled),
+        "CONTACTLESS" => existing.contactless = Some(enabled),
+        "INTERNATIONAL" => existing.international = Some(enabled),
+        "DCC" => existing.dcc = Some(enabled),
+        _ => {}
+    }
+
+    HttpResponse::Ok().json(ApiResponse::success(SuccessResult { success: true }))
+}
+
+pub async fn pci_card_details(
+    body: web::Json<PciCardDetailsRequest>,
+    state: web::Data<AppState>,
+) -> HttpResponse {
+    let entity_id = match &body.entity_id {
+        Some(id) if !id.is_empty() => id.clone(),
+        _ => return error::missing_field("entityId").to_response(),
+    };
+
+    let kit_no = match &body.kit_no {
+        Some(k) if !k.is_empty() => k.clone(),
+        _ => return error::missing_field("kitNo").to_response(),
+    };
+
+    // Verify card exists
+    {
+        let cards = state.cards.read().unwrap();
+        match cards.get(&kit_no) {
+            Some(c) if c.entity_id == entity_id => {}
+            Some(_) => return error::kit_entity_mismatch().to_response(),
+            None => return error::kit_not_found().to_response(),
+        }
+    }
+
+    HttpResponse::Ok().json(serde_json::json!({
+        "result": {
+            "url": format!("https://mock-pci.example.com/card/{}", kit_no)
+        },
+        "exception": null,
+        "pagination": null
+    }))
+}
+
+pub async fn set_pin(
+    body: web::Json<PciCardDetailsRequest>,
+    state: web::Data<AppState>,
+) -> HttpResponse {
+    let entity_id = match &body.entity_id {
+        Some(id) if !id.is_empty() => id.clone(),
+        _ => return error::missing_field("entityId").to_response(),
+    };
+
+    let kit_no = match &body.kit_no {
+        Some(k) if !k.is_empty() => k.clone(),
+        _ => return error::missing_field("kitNo").to_response(),
+    };
+
+    // Verify card exists
+    {
+        let cards = state.cards.read().unwrap();
+        match cards.get(&kit_no) {
+            Some(c) if c.entity_id == entity_id => {}
+            Some(_) => return error::kit_entity_mismatch().to_response(),
+            None => return error::kit_not_found().to_response(),
+        }
+    }
+
+    HttpResponse::Ok().json(serde_json::json!({
+        "result": {
+            "url": format!("https://mock-pci.example.com/setpin/{}", kit_no)
+        },
+        "exception": null,
+        "pagination": null
+    }))
 }
 
 pub async fn fetch_preference(

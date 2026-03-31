@@ -37,6 +37,7 @@ pub struct GenerateOtpRequest {
 pub struct GenerateOtpResponse {
     pub success: bool,
     pub entity_id: String,
+    pub flow_ref_no: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -100,6 +101,7 @@ pub struct AddressInfo {
 pub struct CommunicationInfo {
     pub contact_no: Option<String>,
     pub email_id: Option<String>,
+    pub notification: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

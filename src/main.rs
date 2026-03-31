@@ -13,10 +13,15 @@ mod state;
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     // Load .env if present
-    let _ = dotenvy::dotenv();
+    match dotenvy::dotenv() {
+        Ok(path) => println!("Loaded .env from: {:?}", path),
+        Err(e) => println!("No .env loaded: {}", e),
+    }
     env_logger::init();
 
     let app_config = config::AppConfig::from_env();
+    log::info!("Valid auth tokens: {:?}", app_config.valid_auth_tokens);
+    log::info!("Valid tenants: {:?}", app_config.valid_tenants);
     let port = app_config.port;
 
     let app_state = web::Data::new(state::AppState::new(app_config.partner_webhook_url));
